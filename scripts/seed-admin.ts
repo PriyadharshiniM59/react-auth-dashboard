@@ -31,9 +31,9 @@ async function seedAdmin() {
     const sql = neon(databaseUrl);
     const db = drizzle(sql);
 
-    // Admin credentials - CHANGE THESE!
-    const adminEmail = 'admin@example.com';
-    const adminPassword = 'admin123';
+    // Admin credentials
+    const adminEmail = 'test@test.com';
+    const adminPassword = 'Test123@123';
     const adminName = 'Admin User';
 
     console.log('🔐 Creating admin user...');
