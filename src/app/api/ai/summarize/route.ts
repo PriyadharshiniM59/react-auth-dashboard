@@ -22,6 +22,13 @@ interface CaptionTrack {
     name?: { simpleText?: string };
 }
 
+interface VideoMetadata {
+    title: string;
+    description: string;
+    transcript?: string;
+    isFallback: boolean;
+}
+
 function decodeHtmlEntities(text: string): string {
     return text
         .replace(/&amp;#39;/g, "'")
@@ -35,9 +42,8 @@ function decodeHtmlEntities(text: string): string {
         .trim();
 }
 
-async function getTranscript(videoId: string): Promise<{ title: string; transcript: string }> {
-    // Use YouTube's internal player API with ANDROID client
-    // The ANDROID client reliably returns caption tracks from any environment
+async function getTranscript(videoId: string): Promise<VideoMetadata> {
+    // Try YouTube player API with ANDROID client (most robust)
     const playerResponse = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
         method: 'POST',
         headers: {
@@ -67,73 +73,80 @@ async function getTranscript(videoId: string): Promise<{ title: string; transcri
 
     const data = await playerResponse.json();
     const title = data.videoDetails?.title || 'Untitled Video';
+    const description = data.videoDetails?.shortDescription || '';
 
     // Get caption tracks from player response
     const captionTracks: CaptionTrack[] | undefined =
         data.captions?.playerCaptionsTracklistRenderer?.captionTracks;
 
     if (!captionTracks || captionTracks.length === 0) {
-        throw new Error('No captions/subtitles available for this video');
+        // Fallback: No transcripts available, return metadata for knowledge-based summarization
+        return { title, description, isFallback: true };
     }
 
-    // Prefer English, fall back to first available
-    const enTrack =
-        captionTracks.find(t => t.languageCode === 'en') ||
-        captionTracks.find(t => t.languageCode?.startsWith('en')) ||
-        captionTracks[0];
+    try {
+        // Prefer English, fall back to first available
+        const enTrack =
+            captionTracks.find(t => t.languageCode === 'en') ||
+            captionTracks.find(t => t.languageCode?.startsWith('en')) ||
+            captionTracks[0];
 
-    if (!enTrack?.baseUrl) {
-        throw new Error('No caption URL found');
-    }
+        if (!enTrack?.baseUrl) {
+            return { title, description, isFallback: true };
+        }
 
-    // Fetch the transcript XML
-    const captionResponse = await fetch(enTrack.baseUrl);
-    if (!captionResponse.ok) {
-        throw new Error('Failed to fetch captions');
-    }
+        // Fetch the transcript XML
+        const captionResponse = await fetch(enTrack.baseUrl);
+        if (!captionResponse.ok) {
+            return { title, description, isFallback: true };
+        }
 
-    const xml = await captionResponse.text();
-    if (!xml || xml.length === 0) {
-        throw new Error('Caption data is empty');
-    }
+        const xml = await captionResponse.text();
+        if (!xml || xml.length === 0) {
+            return { title, description, isFallback: true };
+        }
 
-    // Parse XML — handles both <text> format and <p> format
-    let segments: string[] = [];
+        // Parse XML — handles both <text> format and <p> format
+        let segments: string[] = [];
 
-    // Try <text> format first (standard captions)
-    const textMatches = xml.match(/<text[^>]*>([^<]*)<\/text>/g);
-    if (textMatches && textMatches.length > 0) {
-        segments = textMatches.map(seg => {
-            const m = seg.match(/<text[^>]*>([^<]*)<\/text>/);
-            return m ? decodeHtmlEntities(m[1]) : '';
-        });
-    }
-
-    // Try <p> format (ANDROID client format)
-    if (segments.length === 0) {
-        const pMatches = xml.match(/<p[^>]*>([^<]*)<\/p>/g);
-        if (pMatches && pMatches.length > 0) {
-            segments = pMatches.map(seg => {
-                const m = seg.match(/<p[^>]*>([^<]*)<\/p>/);
+        // Try <text> format first (standard captions)
+        const textMatches = xml.match(/<text[^>]*>([^<]*)<\/text>/g);
+        if (textMatches && textMatches.length > 0) {
+            segments = textMatches.map(seg => {
+                const m = seg.match(/<text[^>]*>([^<]*)<\/text>/);
                 return m ? decodeHtmlEntities(m[1]) : '';
             });
         }
+
+        // Try <p> format (ANDROID client format)
+        if (segments.length === 0) {
+            const pMatches = xml.match(/<p[^>]*>([^<]*)<\/p>/g);
+            if (pMatches && pMatches.length > 0) {
+                segments = pMatches.map(seg => {
+                    const m = seg.match(/<p[^>]*>([^<]*)<\/p>/);
+                    return m ? decodeHtmlEntities(m[1]) : '';
+                });
+            }
+        }
+
+        if (segments.length === 0) {
+            return { title, description, isFallback: true };
+        }
+
+        const transcript = segments.filter(t => t !== '').join(' ');
+
+        if (!transcript.trim()) {
+            return { title, description, isFallback: true };
+        }
+
+        return { title, description, transcript, isFallback: false };
+    } catch (err) {
+        console.error('Transcript extraction failed, falling back to knowledge-based summary:', err);
+        return { title, description, isFallback: true };
     }
-
-    if (segments.length === 0) {
-        throw new Error('No text found in captions');
-    }
-
-    const transcript = segments.filter(t => t !== '').join(' ');
-
-    if (!transcript.trim()) {
-        throw new Error('Transcript is empty');
-    }
-
-    return { title, transcript };
 }
 
-async function summarizeWithGemini(title: string, transcript: string): Promise<string> {
+async function summarizeWithGemini(metadata: VideoMetadata): Promise<string> {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         throw new Error('GEMINI_API_KEY is not configured');
@@ -142,12 +155,24 @@ async function summarizeWithGemini(title: string, transcript: string): Promise<s
     const genAI = new GoogleGenerativeAI(apiKey);
     const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
 
-    const prompt = `You are an expert study notes generator. Analyze the following YouTube video transcript and create comprehensive, well-structured study notes.
+    let context = '';
+    if (metadata.isFallback) {
+        context = `The transcript for this video is currently unavailable due to system restrictions. 
+Please use the following metadata and your own extensive knowledge of this video to generate detailed study notes.
 
-**Video Title:** ${title}
+**Title:** ${metadata.title}
+**Description:** ${metadata.description}
 
+Note: This is a popular video, so please provide the most accurate and detailed notes possible based on your training data regarding this specific content.`;
+    } else {
+        context = `**Video Title:** ${metadata.title}
 **Transcript:**
-${transcript.substring(0, 30000)}
+${metadata.transcript?.substring(0, 30000)}`;
+    }
+
+    const prompt = `You are an expert study notes generator. Analyze the following video information and create comprehensive, well-structured study notes.
+
+${context}
 
 ---
 
@@ -216,25 +241,26 @@ export async function POST(request: Request) {
             );
         }
 
-        // Extract transcript
-        let videoData;
+        // Extract transcript or metadata
+        let videoData: VideoMetadata;
         try {
             videoData = await getTranscript(videoId);
         } catch (err) {
-            const message = err instanceof Error ? err.message : 'Unknown error';
+            console.error('Metadata extraction failed:', err);
             return NextResponse.json(
-                { error: `Could not extract transcript: ${message}` },
+                { error: 'Failed to access video information. Please ensure the URL is correct and the video is public.' },
                 { status: 422 }
             );
         }
 
-        // Generate study notes with AI
-        const notes = await summarizeWithGemini(videoData.title, videoData.transcript);
+        // Generate study notes with AI (uses either transcript or knowledge-based fallback)
+        const notes = await summarizeWithGemini(videoData);
 
         return NextResponse.json({
             title: videoData.title,
             videoId,
             notes,
+            isFallback: videoData.isFallback
         });
     } catch (error) {
         console.error('AI Summarize error:', error);
