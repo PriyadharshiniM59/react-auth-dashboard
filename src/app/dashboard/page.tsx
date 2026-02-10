@@ -28,6 +28,9 @@ export default function UserDashboard() {
                     <a href="/dashboard" className="sidebar-link active">
                         🏠 Home
                     </a>
+                    <a href="/dashboard/ai-notes" className="sidebar-link">
+                        🤖 AI Notes
+                    </a>
                     <a href="/dashboard" className="sidebar-link">
                         📈 Analytics
                     </a>
