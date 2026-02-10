@@ -29,6 +29,19 @@ interface VideoMetadata {
     isFallback: boolean;
 }
 
+async function getOEmbedMetadata(videoId: string): Promise<{ title: string }> {
+    try {
+        const resp = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+        if (resp.ok) {
+            const data = await resp.json();
+            return { title: data.title || 'Untitled Video' };
+        }
+    } catch (err) {
+        console.error('oEmbed metadata extraction failed:', err);
+    }
+    return { title: 'Untitled Video' };
+}
+
 function decodeHtmlEntities(text: string): string {
     return text
         .replace(/&amp;#39;/g, "'")
@@ -43,49 +56,56 @@ function decodeHtmlEntities(text: string): string {
 }
 
 async function getTranscript(videoId: string): Promise<VideoMetadata> {
-    // Try YouTube player API with ANDROID client (most robust)
-    const playerResponse = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 13; en_US; SM-S918B; Build/TP1A.220624.014)',
-            'X-YouTube-Client-Name': '3',
-            'X-YouTube-Client-Version': '19.09.37',
-            'X-Goog-Api-Format-Version': '2',
-        },
-        body: JSON.stringify({
-            videoId,
-            context: {
-                client: {
-                    clientName: 'ANDROID',
-                    clientVersion: '19.09.37',
-                    androidSdkVersion: 33,
-                    hl: 'en',
-                    gl: 'US',
-                },
+    // 1. Get official title via oEmbed (most reliable on Vercel)
+    const { title: oEmbedTitle } = await getOEmbedMetadata(videoId);
+
+    // 2. Try YouTube player API with ANDROID client for transcript and description
+    let playerResponse;
+    try {
+        playerResponse = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 13; en_US; SM-S918B; Build/TP1A.220624.014)',
+                'X-YouTube-Client-Name': '3',
+                'X-YouTube-Client-Version': '19.09.37',
+                'X-Goog-Api-Format-Version': '2',
             },
-        }),
-    });
+            body: JSON.stringify({
+                videoId,
+                context: {
+                    client: {
+                        clientName: 'ANDROID',
+                        clientVersion: '19.09.37',
+                        androidSdkVersion: 33,
+                        hl: 'en',
+                        gl: 'US',
+                    },
+                },
+            }),
+        });
+    } catch (err) {
+        console.error('Player API fetch failed:', err);
+        return { title: oEmbedTitle, description: '', isFallback: true };
+    }
 
     if (!playerResponse.ok) {
-        throw new Error('Failed to fetch video data from YouTube');
+        return { title: oEmbedTitle, description: '', isFallback: true };
     }
 
     const data = await playerResponse.json();
-    const title = data.videoDetails?.title || 'Untitled Video';
+    const title = data.videoDetails?.title || oEmbedTitle;
     const description = data.videoDetails?.shortDescription || '';
 
-    // Get caption tracks from player response
+    // 3. Extract transcript
     const captionTracks: CaptionTrack[] | undefined =
         data.captions?.playerCaptionsTracklistRenderer?.captionTracks;
 
     if (!captionTracks || captionTracks.length === 0) {
-        // Fallback: No transcripts available, return metadata for knowledge-based summarization
         return { title, description, isFallback: true };
     }
 
     try {
-        // Prefer English, fall back to first available
         const enTrack =
             captionTracks.find(t => t.languageCode === 'en') ||
             captionTracks.find(t => t.languageCode?.startsWith('en')) ||
@@ -95,7 +115,6 @@ async function getTranscript(videoId: string): Promise<VideoMetadata> {
             return { title, description, isFallback: true };
         }
 
-        // Fetch the transcript XML
         const captionResponse = await fetch(enTrack.baseUrl);
         if (!captionResponse.ok) {
             return { title, description, isFallback: true };
@@ -106,10 +125,7 @@ async function getTranscript(videoId: string): Promise<VideoMetadata> {
             return { title, description, isFallback: true };
         }
 
-        // Parse XML — handles both <text> format and <p> format
         let segments: string[] = [];
-
-        // Try <text> format first (standard captions)
         const textMatches = xml.match(/<text[^>]*>([^<]*)<\/text>/g);
         if (textMatches && textMatches.length > 0) {
             segments = textMatches.map(seg => {
@@ -118,7 +134,6 @@ async function getTranscript(videoId: string): Promise<VideoMetadata> {
             });
         }
 
-        // Try <p> format (ANDROID client format)
         if (segments.length === 0) {
             const pMatches = xml.match(/<p[^>]*>([^<]*)<\/p>/g);
             if (pMatches && pMatches.length > 0) {
@@ -141,7 +156,7 @@ async function getTranscript(videoId: string): Promise<VideoMetadata> {
 
         return { title, description, transcript, isFallback: false };
     } catch (err) {
-        console.error('Transcript extraction failed, falling back to knowledge-based summary:', err);
+        console.error('Transcript processing failed:', err);
         return { title, description, isFallback: true };
     }
 }
@@ -157,13 +172,11 @@ async function summarizeWithGemini(metadata: VideoMetadata): Promise<string> {
 
     let context = '';
     if (metadata.isFallback) {
-        context = `The transcript for this video is currently unavailable due to system restrictions. 
-Please use the following metadata and your own extensive knowledge of this video to generate detailed study notes.
+        context = `The exact transcript for this video is currently unavailable due to data restrictions. 
+However, we know the video is titled: "${metadata.title}".
+Description: ${metadata.description}
 
-**Title:** ${metadata.title}
-**Description:** ${metadata.description}
-
-Note: This is a popular video, so please provide the most accurate and detailed notes possible based on your training data regarding this specific content.`;
+Please use your extensive knowledge of the web and this specific YouTube video to generate comprehensive, highly accurate study notes as if you had read the transcript.`;
     } else {
         context = `**Video Title:** ${metadata.title}
 **Transcript:**
@@ -241,19 +254,10 @@ export async function POST(request: Request) {
             );
         }
 
-        // Extract transcript or metadata
-        let videoData: VideoMetadata;
-        try {
-            videoData = await getTranscript(videoId);
-        } catch (err) {
-            console.error('Metadata extraction failed:', err);
-            return NextResponse.json(
-                { error: 'Failed to access video information. Please ensure the URL is correct and the video is public.' },
-                { status: 422 }
-            );
-        }
+        // Extract metadata and transcript
+        const videoData = await getTranscript(videoId);
 
-        // Generate study notes with AI (uses either transcript or knowledge-based fallback)
+        // Generate study notes
         const notes = await summarizeWithGemini(videoData);
 
         return NextResponse.json({
