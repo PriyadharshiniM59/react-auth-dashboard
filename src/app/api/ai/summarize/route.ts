@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { Innertube } from 'youtubei.js';
 
 function extractVideoId(url: string): string | null {
     const patterns = [
@@ -18,36 +17,74 @@ function extractVideoId(url: string): string | null {
 }
 
 interface CaptionTrack {
-    language_code: string;
-    base_url: string;
-    name?: { text?: string };
+    languageCode: string;
+    baseUrl: string;
+    name?: { simpleText?: string };
+}
+
+function decodeHtmlEntities(text: string): string {
+    return text
+        .replace(/&amp;#39;/g, "'")
+        .replace(/&amp;quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/\n/g, ' ')
+        .trim();
 }
 
 async function getTranscript(videoId: string): Promise<{ title: string; transcript: string }> {
-    // Use Innertube to get video info and caption track URLs
-    const yt = await Innertube.create({ generate_session_locally: true });
-    const info = await yt.getInfo(videoId);
-    const title = info.basic_info.title || 'Untitled Video';
+    // Use YouTube's internal player API with ANDROID client
+    // The ANDROID client reliably returns caption tracks from any environment
+    const playerResponse = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 13)',
+        },
+        body: JSON.stringify({
+            videoId,
+            context: {
+                client: {
+                    clientName: 'ANDROID',
+                    clientVersion: '19.09.37',
+                    androidSdkVersion: 33,
+                    hl: 'en',
+                    gl: 'US',
+                },
+            },
+        }),
+    });
+
+    if (!playerResponse.ok) {
+        throw new Error('Failed to fetch video data from YouTube');
+    }
+
+    const data = await playerResponse.json();
+    const title = data.videoDetails?.title || 'Untitled Video';
 
     // Get caption tracks from player response
-    const captions = info.captions;
-    if (!captions || !captions.caption_tracks || captions.caption_tracks.length === 0) {
+    const captionTracks: CaptionTrack[] | undefined =
+        data.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+
+    if (!captionTracks || captionTracks.length === 0) {
         throw new Error('No captions/subtitles available for this video');
     }
 
-    const tracks = captions.caption_tracks as CaptionTrack[];
-
     // Prefer English, fall back to first available
-    const enTrack = tracks.find(t => t.language_code === 'en')
-        || tracks.find(t => t.language_code?.startsWith('en'))
-        || tracks[0];
+    const enTrack =
+        captionTracks.find(t => t.languageCode === 'en') ||
+        captionTracks.find(t => t.languageCode?.startsWith('en')) ||
+        captionTracks[0];
 
-    if (!enTrack?.base_url) {
+    if (!enTrack?.baseUrl) {
         throw new Error('No caption URL found');
     }
 
-    // Fetch the actual transcript XML from the caption URL
-    const captionResponse = await fetch(enTrack.base_url);
+    // Fetch the transcript XML
+    const captionResponse = await fetch(enTrack.baseUrl);
     if (!captionResponse.ok) {
         throw new Error('Failed to fetch captions');
     }
@@ -57,29 +94,34 @@ async function getTranscript(videoId: string): Promise<{ title: string; transcri
         throw new Error('Caption data is empty');
     }
 
-    // Parse XML to extract text segments
+    // Parse XML — handles both <text> format and <p> format
+    let segments: string[] = [];
+
+    // Try <text> format first (standard captions)
     const textMatches = xml.match(/<text[^>]*>([^<]*)<\/text>/g);
-    if (!textMatches || textMatches.length === 0) {
+    if (textMatches && textMatches.length > 0) {
+        segments = textMatches.map(seg => {
+            const m = seg.match(/<text[^>]*>([^<]*)<\/text>/);
+            return m ? decodeHtmlEntities(m[1]) : '';
+        });
+    }
+
+    // Try <p> format (ANDROID client format)
+    if (segments.length === 0) {
+        const pMatches = xml.match(/<p[^>]*>([^<]*)<\/p>/g);
+        if (pMatches && pMatches.length > 0) {
+            segments = pMatches.map(seg => {
+                const m = seg.match(/<p[^>]*>([^<]*)<\/p>/);
+                return m ? decodeHtmlEntities(m[1]) : '';
+            });
+        }
+    }
+
+    if (segments.length === 0) {
         throw new Error('No text found in captions');
     }
 
-    const transcript = textMatches
-        .map(segment => {
-            const match = segment.match(/<text[^>]*>([^<]*)<\/text>/);
-            if (!match) return '';
-            return match[1]
-                .replace(/&amp;#39;/g, "'")
-                .replace(/&amp;quot;/g, '"')
-                .replace(/&amp;/g, '&')
-                .replace(/&lt;/g, '<')
-                .replace(/&gt;/g, '>')
-                .replace(/&quot;/g, '"')
-                .replace(/&#39;/g, "'")
-                .replace(/\n/g, ' ')
-                .trim();
-        })
-        .filter(text => text !== '')
-        .join(' ');
+    const transcript = segments.filter(t => t !== '').join(' ');
 
     if (!transcript.trim()) {
         throw new Error('Transcript is empty');
@@ -142,7 +184,6 @@ Make the notes clear, concise, and student-friendly. Use bullet points for reada
             const message = err instanceof Error ? err.message : '';
             if (message.includes('429') || message.includes('quota')) {
                 console.log(`Model ${modelName} rate limited, trying next...`);
-                // Wait 2 seconds before trying next model
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 continue;
             }
