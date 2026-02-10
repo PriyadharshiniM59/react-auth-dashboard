@@ -42,7 +42,10 @@ async function getTranscript(videoId: string): Promise<{ title: string; transcri
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 13)',
+            'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 13; en_US; SM-S918B; Build/TP1A.220624.014)',
+            'X-YouTube-Client-Name': '3',
+            'X-YouTube-Client-Version': '19.09.37',
+            'X-Goog-Api-Format-Version': '2',
         },
         body: JSON.stringify({
             videoId,
