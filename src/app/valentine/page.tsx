@@ -1,7 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Head from 'next/head';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'A Special Message',
+    robots: 'noindex, nofollow', // Prevent search engines from indexing this page
+};
 
 /**
  * VALENTINE SURPRISE CONFIGURATION
