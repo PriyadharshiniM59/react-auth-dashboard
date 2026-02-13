@@ -11,8 +11,8 @@ const CONFIG = {
     partnerName: 'My Love', // Your partner's name
     specialDate: 'February 14, 2026',
     message: `You are the most amazing person I've ever known. Every day with you is a gift, and I'm so lucky to have you in my life. Happy Valentine's Day! ❤️`,
-    videoUrl: '', // Add a direct video URL here (e.g., /assets/video.mp4)
-    imageUrl: '/assets/partner.jpg', // Linked your partner's photo! 🌹
+    videoUrl: '/assets/valentine-video.mp4', // Linked your Valentine video! 🎬
+    imageUrl: '',
 };
 
 export default function ValentineClient() {
