@@ -44,11 +44,13 @@ int main() {
         e.preventDefault();
         if (!inputValue.trim()) return;
 
+        const responseText = inputValue.toLowerCase().trim() === 'husband' ? 'loved valentine' : inputValue;
+
         setStep(3);
         setTerminalOutput(prev => [
             ...prev.slice(0, -1),
             `WHO U ARE TO ME: ${inputValue}`,
-            `IM UR : ${inputValue}`,
+            `IM UR : ${responseText}`,
             '',
             'Process finished with exit code 0',
             '----------------------------------',

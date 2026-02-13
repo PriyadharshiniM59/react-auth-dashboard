@@ -2,11 +2,16 @@
 
 import { useState, useEffect } from 'react';
 
+/**
+ * VALENTINE SURPRISE CONFIGURATION
+ * You can edit these values to customize the surprise!
+ */
 const CONFIG = {
-    secretCode: 'FOREVER',
-    partnerName: 'My Love',
+    secretCode: 'FOREVER', // The code to unlock the page
+    partnerName: 'My Love', // Your partner's name
     specialDate: 'February 14, 2026',
     message: `You are the most amazing person I've ever known. Every day with you is a gift, and I'm so lucky to have you in my life. Happy Valentine's Day! ❤️`,
+    videoUrl: '', // Add a direct video URL here (e.g., /assets/video.mp4) to show a video instead of a photo
 };
 
 export default function ValentineClient() {
@@ -163,25 +168,32 @@ export default function ValentineClient() {
                     to { transform: translateY(0); opacity: 1; }
                 }
 
-                .partner-pic {
-                    width: 150px;
-                    height: 150px;
-                    border-radius: 50%;
+                .partner-media {
+                    width: 100%;
+                    max-width: 300px;
+                    border-radius: 20px;
                     border: 4px solid #ff2d55;
                     margin: 0 auto 2rem;
                     overflow: hidden;
                     box-shadow: 0 0 30px rgba(255, 45, 85, 0.3);
                 }
 
-                .pic-placeholder {
+                .partner-media video, .partner-media img {
                     width: 100%;
-                    height: 100%;
+                    display: block;
+                }
+
+                .pic-placeholder {
+                    width: 100px;
+                    height: 100px;
+                    border-radius: 50%;
                     background: radial-gradient(circle, #ff5263, #ff2d55);
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     color: white;
                     font-size: 2rem;
+                    margin: 0 auto 2rem;
                 }
 
                 .romantic-message {
@@ -217,9 +229,18 @@ export default function ValentineClient() {
                 ) : (
                     <div className="glass-card reveal-card">
                         <div className="heart-icon">❤️</div>
-                        <div className="partner-pic">
+
+                        {CONFIG.videoUrl ? (
+                            <div className="partner-media">
+                                <video autoPlay loop muted playsInline>
+                                    <source src={CONFIG.videoUrl} type="video/mp4" />
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                        ) : (
                             <div className="pic-placeholder">📷</div>
-                        </div>
+                        )}
+
                         <h1>Happy Valentine's Day!</h1>
                         <div className="romantic-message">
                             "{CONFIG.message}"
