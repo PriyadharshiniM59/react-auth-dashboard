@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /**
  * VALENTINE SURPRISE CONFIGURATION
@@ -19,6 +19,8 @@ export default function ValentineClient() {
     const [code, setCode] = useState('');
     const [isUnlocked, setIsUnlocked] = useState(false);
     const [error, setError] = useState(false);
+    const [isMuted, setIsMuted] = useState(true);
+    const videoRef = useRef<HTMLVideoElement>(null);
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -203,6 +205,31 @@ export default function ValentineClient() {
                     font-style: italic;
                     margin-bottom: 2rem;
                 }
+                .sound-toggle {
+                    position: absolute;
+                    bottom: 20px;
+                    right: 20px;
+                    background: rgba(0, 0, 0, 0.4);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    color: white;
+                    border-radius: 50%;
+                    width: 40px;
+                    height: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    font-size: 1.2rem;
+                    z-index: 10;
+                    transition: all 0.2s ease;
+                }
+
+                .sound-toggle:hover {
+                    background: rgba(255, 45, 85, 0.6);
+                    transform: scale(1.1);
+                }
+
+                .message-container { position: relative; }
             `}</style>
 
             <div className="bg-overlay" />
@@ -232,11 +259,25 @@ export default function ValentineClient() {
                         <div className="heart-icon">❤️</div>
 
                         {CONFIG.videoUrl ? (
-                            <div className="partner-media">
-                                <video autoPlay loop muted playsInline>
+                            <div className="partner-media" style={{ position: 'relative' }}>
+                                <video
+                                    ref={videoRef}
+                                    autoPlay
+                                    loop
+                                    muted={isMuted}
+                                    playsInline
+                                    style={{ borderRadius: '15px' }}
+                                >
                                     <source src={CONFIG.videoUrl} type="video/mp4" />
                                     Your browser does not support the video tag.
                                 </video>
+                                <button
+                                    className="sound-toggle"
+                                    onClick={() => setIsMuted(!isMuted)}
+                                    title={isMuted ? "Unmute" : "Mute"}
+                                >
+                                    {isMuted ? "🔇" : "🔊"}
+                                </button>
                             </div>
                         ) : CONFIG.imageUrl ? (
                             <div className="partner-media">
