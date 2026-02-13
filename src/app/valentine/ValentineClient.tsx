@@ -11,7 +11,8 @@ const CONFIG = {
     partnerName: 'My Love', // Your partner's name
     specialDate: 'February 14, 2026',
     message: `You are the most amazing person I've ever known. Every day with you is a gift, and I'm so lucky to have you in my life. Happy Valentine's Day! ❤️`,
-    videoUrl: '', // Add a direct video URL here (e.g., /assets/video.mp4) to show a video instead of a photo
+    videoUrl: '', // Add a direct video URL here (e.g., /assets/video.mp4)
+    imageUrl: '/assets/partner.jpg', // Linked your partner's photo! 🌹
 };
 
 export default function ValentineClient() {
@@ -236,6 +237,10 @@ export default function ValentineClient() {
                                     <source src={CONFIG.videoUrl} type="video/mp4" />
                                     Your browser does not support the video tag.
                                 </video>
+                            </div>
+                        ) : CONFIG.imageUrl ? (
+                            <div className="partner-media">
+                                <img src={CONFIG.imageUrl} alt="Valentine" />
                             </div>
                         ) : (
                             <div className="pic-placeholder">📷</div>
