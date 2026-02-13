@@ -7,15 +7,15 @@ import { useState, useEffect, useRef } from 'react';
  * You can edit these values to customize the surprise!
  */
 const CONFIG = {
-    secretCode: 'FOREVER', // The code to unlock the page
-    partnerName: 'My Love', // Your partner's name
+    secretCode: 'FOREVER',
+    partnerName: 'My Love',
     specialDate: 'February 14, 2026',
     message: `You are the most amazing person I've ever known. Every day with you is a gift, and I'm so lucky to have you in my life. Happy Valentine's Day! ❤️`,
-    videoUrl: '/assets/valentine-video.mp4', // Linked your Valentine video! 🎬
+    videoUrl: '/assets/valentine-video-2.mp4', // New placeholder for 2nd video
     imageUrl: '',
 };
 
-export default function ValentineClient() {
+export default function ValentineClient2() {
     const [code, setCode] = useState('');
     const [isUnlocked, setIsUnlocked] = useState(false);
     const [error, setError] = useState(false);
