@@ -83,6 +83,9 @@ export default function AdminDashboard() {
                     <a href="/admin" className="sidebar-link active">
                         📊 Dashboard
                     </a>
+                    <a href="/dashboard/ai-notes" className="sidebar-link">
+                        🤖 AI Notes
+                    </a>
                     <a href="/admin" className="sidebar-link">
                         👥 Users
                     </a>
