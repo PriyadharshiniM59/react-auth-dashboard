@@ -27,14 +27,13 @@ function scoreChunk(chunk: string, question: string): number {
     const questionWords = question
         .toLowerCase()
         .split(/\s+/)
-        .filter(w => w.length > 2) // skip short words like "a", "is", "to"
+        .filter(w => w.length > 2)
         .filter(w => !['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'has', 'how', 'who', 'what', 'when', 'where', 'which', 'why', 'this', 'that', 'with', 'from', 'have', 'will', 'does', 'about'].includes(w));
 
     if (questionWords.length === 0) return 0;
 
     let score = 0;
     for (const word of questionWords) {
-        // Count occurrences
         const regex = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
         const matches = chunkLower.match(regex);
         if (matches) {
@@ -42,31 +41,48 @@ function scoreChunk(chunk: string, question: string): number {
         }
     }
 
-    // Normalize by chunk length to avoid bias toward longer chunks
     return score / Math.sqrt(chunk.split(/\s+/).length);
 }
 
-// Get the most relevant chunks for a question
-function getRelevantChunks(content: string, question: string, topK = 5): string[] {
-    const chunks = chunkText(content);
-
-    const scored = chunks.map((chunk, index) => ({
-        chunk,
-        score: scoreChunk(chunk, question),
-        index,
-    }));
-
-    // Sort by score descending, take top K
-    scored.sort((a, b) => b.score - a.score);
-    const topChunks = scored.slice(0, topK);
-
-    // Re-order by original position for coherent context
-    topChunks.sort((a, b) => a.index - b.index);
-
-    return topChunks.map(c => c.chunk);
+interface ScoredChunk {
+    chunk: string;
+    score: number;
+    index: number;
+    filename: string;
+    documentId: number;
 }
 
-async function answerWithGemini(question: string, context: string, filename: string): Promise<string> {
+// Get the most relevant chunks across multiple documents
+function getRelevantChunksMultiDoc(
+    docs: { id: number; filename: string; content: string }[],
+    question: string,
+    topK = 8
+): ScoredChunk[] {
+    const allScored: ScoredChunk[] = [];
+
+    for (const doc of docs) {
+        const chunks = chunkText(doc.content);
+        for (let i = 0; i < chunks.length; i++) {
+            allScored.push({
+                chunk: chunks[i],
+                score: scoreChunk(chunks[i], question),
+                index: i,
+                filename: doc.filename,
+                documentId: doc.id,
+            });
+        }
+    }
+
+    // Sort by score descending, take top K
+    allScored.sort((a, b) => b.score - a.score);
+    return allScored.slice(0, topK);
+}
+
+async function answerWithGemini(
+    question: string,
+    context: string,
+    sourceInfo: string
+): Promise<string> {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         throw new Error('GEMINI_API_KEY is not configured');
@@ -75,11 +91,11 @@ async function answerWithGemini(question: string, context: string, filename: str
     const genAI = new GoogleGenerativeAI(apiKey);
     const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
 
-    const prompt = `You are a helpful document Q&A assistant. You answer questions based ONLY on the provided document context. If the answer cannot be found in the context, say so clearly.
+    const prompt = `You are a helpful multi-document Q&A assistant. You answer questions based ONLY on the provided document context. If the answer cannot be found in the context, say so clearly.
 
-**Document:** ${filename}
+**Documents in workspace:** ${sourceInfo}
 
-**Relevant sections from the document:**
+**Relevant sections from the documents:**
 ${context}
 
 ---
@@ -88,7 +104,7 @@ ${context}
 
 ---
 
-Please provide a clear, well-structured answer based on the document content above. If the document doesn't contain enough information to fully answer the question, mention what you found and note what's missing. Format your answer with markdown for readability.`;
+Please provide a clear, well-structured answer based on the document content above. When citing information, mention which document it came from. If the documents don't contain enough information to fully answer the question, mention what you found and note what's missing. Format your answer with markdown for readability.`;
 
     for (const modelName of models) {
         try {
@@ -116,46 +132,66 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { documentId, question } = await request.json();
+        const { workspaceId, documentId, question } = await request.json();
 
-        if (!documentId || !question) {
+        if (!question || question.trim().length < 3) {
             return NextResponse.json(
-                { error: 'Document ID and question are required' },
+                { error: 'Please ask a more specific question.' },
                 { status: 400 }
             );
         }
 
-        if (question.trim().length < 3) {
-            return NextResponse.json(
-                { error: 'Question is too short. Please ask a more specific question.' },
-                { status: 400 }
-            );
+        let docsToSearch: { id: number; filename: string; content: string }[] = [];
+
+        if (workspaceId) {
+            // Cross-document: fetch ALL documents in the workspace
+            docsToSearch = await db
+                .select({ id: documents.id, filename: documents.filename, content: documents.content })
+                .from(documents)
+                .where(and(eq(documents.workspaceId, workspaceId), eq(documents.userId, session.userId)));
+        } else if (documentId) {
+            // Single document mode (backwards compatible)
+            const [doc] = await db
+                .select({ id: documents.id, filename: documents.filename, content: documents.content })
+                .from(documents)
+                .where(and(eq(documents.id, documentId), eq(documents.userId, session.userId)))
+                .limit(1);
+
+            if (doc) docsToSearch = [doc];
         }
 
-        // Fetch the document (only if owned by user)
-        const [doc] = await db
-            .select()
-            .from(documents)
-            .where(and(eq(documents.id, documentId), eq(documents.userId, session.userId)))
-            .limit(1);
-
-        if (!doc) {
-            return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+        if (docsToSearch.length === 0) {
+            return NextResponse.json({ error: 'No documents found' }, { status: 404 });
         }
 
-        // RAG: get relevant chunks
-        const relevantChunks = getRelevantChunks(doc.content, question);
-        const context = relevantChunks.map((c, i) => `[Section ${i + 1}]\n${c}`).join('\n\n');
+        // RAG: get relevant chunks across all documents
+        const relevantChunks = getRelevantChunksMultiDoc(docsToSearch, question);
+
+        const context = relevantChunks
+            .map((c, i) => `[Section ${i + 1} from "${c.filename}"]\n${c.chunk}`)
+            .join('\n\n');
+
+        const sourceInfo = docsToSearch.map(d => d.filename).join(', ');
 
         // Generate answer with Gemini
-        const answer = await answerWithGemini(question, context, doc.filename);
+        const answer = await answerWithGemini(question, context, sourceInfo);
+
+        // Group chunks by source document
+        const sourceMap = new Map<string, { filename: string; chunks: { index: number; preview: string }[] }>();
+        for (const chunk of relevantChunks) {
+            if (!sourceMap.has(chunk.filename)) {
+                sourceMap.set(chunk.filename, { filename: chunk.filename, chunks: [] });
+            }
+            sourceMap.get(chunk.filename)!.chunks.push({
+                index: chunk.index + 1,
+                preview: chunk.chunk.substring(0, 200) + (chunk.chunk.length > 200 ? '...' : ''),
+            });
+        }
 
         return NextResponse.json({
             answer,
-            chunks: relevantChunks.map((chunk, i) => ({
-                index: i + 1,
-                preview: chunk.substring(0, 200) + (chunk.length > 200 ? '...' : ''),
-            })),
+            sources: Array.from(sourceMap.values()),
+            totalDocuments: docsToSearch.length,
         });
     } catch (error) {
         console.error('Document Q&A error:', error);

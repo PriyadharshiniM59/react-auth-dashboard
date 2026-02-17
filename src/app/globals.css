@@ -944,4 +944,161 @@ body {
   .doc-layout {
     grid-template-columns: 1fr;
   }
+
+  .ws-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========== Workspace Styles ========== */
+.ws-create-form {
+  background: rgba(15, 15, 35, 0.4);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.ws-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.ws-card {
+  background: rgba(15, 15, 35, 0.5);
+  border: 2px solid var(--card-border);
+  border-radius: 14px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.ws-card:hover {
+  border-color: var(--primary);
+  background: rgba(139, 92, 246, 0.08);
+  transform: translateY(-2px);
+}
+
+.ws-card-selected {
+  border-color: var(--primary) !important;
+  background: rgba(139, 92, 246, 0.15) !important;
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
+}
+
+.ws-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.ws-card-icon {
+  font-size: 1.3rem;
+}
+
+.ws-card-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-card-desc {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ws-card-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+/* ========== Deep Search Toggle ========== */
+.deep-search-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+}
+
+.toggle-btn:hover {
+  color: var(--foreground);
+}
+
+.toggle-btn-active {
+  background: rgba(139, 92, 246, 0.2);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.toggle-btn-deep {
+  background: rgba(16, 185, 129, 0.2) !important;
+  color: #10b981 !important;
+}
+
+.deep-search-badge {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  margin-bottom: 0.75rem;
+}
+
+.btn-deep {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  color: white !important;
+}
+
+.btn-deep:hover {
+  background: linear-gradient(135deg, #059669, #047857) !important;
+}
+
+/* ========== Web Sources ========== */
+.web-sources summary {
+  color: #10b981;
+}
+
+.web-source-item {
+  border-left: 3px solid #10b981 !important;
+}
+
+.web-source-link {
+  color: #10b981;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.web-source-link:hover {
+  text-decoration: underline;
 }

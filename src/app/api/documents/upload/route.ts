@@ -72,8 +72,12 @@ export async function POST(request: Request) {
             );
         }
 
+        const workspaceIdStr = formData.get('workspaceId') as string | null;
+        const workspaceId = workspaceIdStr ? parseInt(workspaceIdStr, 10) : null;
+
         const [doc] = await db.insert(documents).values({
             userId: session.userId,
+            workspaceId: workspaceId,
             filename: file.name,
             content: content,
             fileSize: file.size,

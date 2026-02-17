@@ -14,9 +14,21 @@ export const users = pgTable('users', {
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
+export const workspaces = pgTable('workspaces', {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id').notNull(),
+    name: varchar('name', { length: 255 }).notNull(),
+    description: text('description'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export type Workspace = typeof workspaces.$inferSelect;
+export type NewWorkspace = typeof workspaces.$inferInsert;
+
 export const documents = pgTable('documents', {
     id: serial('id').primaryKey(),
     userId: integer('user_id').notNull(),
+    workspaceId: integer('workspace_id'),  // nullable for backwards compat
     filename: varchar('filename', { length: 500 }).notNull(),
     content: text('content').notNull(),
     fileSize: integer('file_size').notNull(),

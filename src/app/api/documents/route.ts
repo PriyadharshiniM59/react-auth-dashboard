@@ -2,14 +2,31 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { db } from '@/db';
 import { documents } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 
-// GET: List all documents for the authenticated user
-export async function GET() {
+// GET: List documents for the authenticated user, optionally filtered by workspace
+export async function GET(request: Request) {
     try {
         const session = await getSession();
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(request.url);
+        const workspaceId = searchParams.get('workspaceId');
+
+        let whereClause;
+        if (workspaceId) {
+            whereClause = and(
+                eq(documents.userId, session.userId),
+                eq(documents.workspaceId, parseInt(workspaceId, 10))
+            );
+        } else {
+            // Show only docs without a workspace (legacy behavior)
+            whereClause = and(
+                eq(documents.userId, session.userId),
+                isNull(documents.workspaceId)
+            );
         }
 
         const userDocs = await db
@@ -18,9 +35,10 @@ export async function GET() {
                 filename: documents.filename,
                 fileSize: documents.fileSize,
                 createdAt: documents.createdAt,
+                workspaceId: documents.workspaceId,
             })
             .from(documents)
-            .where(eq(documents.userId, session.userId))
+            .where(whereClause)
             .orderBy(documents.createdAt);
 
         return NextResponse.json({ documents: userDocs });
