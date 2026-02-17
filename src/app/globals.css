@@ -645,3 +645,303 @@ body {
     min-width: unset;
   }
 }
+
+/* ========== Document Q&A Styles ========== */
+.doc-layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.doc-dropzone {
+  border: 2px dashed var(--card-border);
+  border-radius: 14px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: rgba(15, 15, 35, 0.4);
+}
+
+.doc-dropzone:hover {
+  border-color: var(--primary);
+  background: rgba(139, 92, 246, 0.06);
+}
+
+.doc-dropzone-active {
+  border-color: var(--secondary);
+  background: rgba(6, 182, 212, 0.1);
+  transform: scale(1.01);
+}
+
+.doc-dropzone-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.doc-dropzone-text {
+  color: var(--foreground);
+  font-size: 0.95rem;
+  margin-bottom: 0.35rem;
+}
+
+.doc-dropzone-hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.doc-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  background: rgba(15, 15, 35, 0.5);
+}
+
+.doc-item:hover {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: var(--card-border);
+}
+
+.doc-item-selected {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: var(--primary);
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
+}
+
+.doc-item-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.doc-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-item-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-item-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+.doc-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  opacity: 0.4;
+  transition: opacity 0.2s;
+  padding: 0.25rem;
+}
+
+.doc-delete-btn:hover {
+  opacity: 1;
+}
+
+.doc-chat-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 55vh;
+}
+
+.doc-chat-filename {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--secondary);
+}
+
+.doc-chat-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  padding: 3rem 0;
+}
+
+.doc-chat-welcome {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--muted);
+}
+
+.doc-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 50vh;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.doc-chat-msg {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.doc-chat-msg-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.doc-chat-msg-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-chat-msg-user .doc-chat-msg-content {
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+}
+
+.doc-chat-msg-assistant .doc-chat-msg-content {
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+}
+
+.doc-answer-body {
+  line-height: 1.7;
+  font-size: 0.92rem;
+}
+
+.doc-answer-h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 1rem 0 0.5rem 0;
+  color: var(--primary-hover);
+}
+
+.doc-answer-h3 {
+  font-size: 1.02rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.35rem 0;
+  color: var(--secondary);
+}
+
+.doc-answer-h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0.5rem 0 0.25rem 0;
+  color: var(--foreground);
+}
+
+.doc-answer-li {
+  margin-left: 1.25rem;
+  padding: 0.15rem 0;
+  list-style: disc;
+}
+
+.doc-answer-li strong {
+  color: var(--primary-hover);
+}
+
+.doc-answer-p {
+  margin: 0.25rem 0;
+}
+
+.doc-spacer {
+  height: 0.35rem;
+}
+
+.doc-thinking {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.doc-sources {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--card-border);
+  padding-top: 0.5rem;
+}
+
+.doc-sources summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 500;
+  padding: 0.25rem 0;
+}
+
+.doc-sources summary:hover {
+  color: var(--foreground);
+}
+
+.doc-sources-list {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.doc-source-item {
+  background: rgba(15, 15, 35, 0.6);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.doc-source-label {
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--secondary);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.doc-chat-input-form {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.doc-chat-input {
+  flex: 1;
+}
+
+.doc-ask-btn {
+  white-space: nowrap;
+  padding: 0.875rem 1.5rem !important;
+}
+
+@media (max-width: 900px) {
+  .doc-layout {
+    grid-template-columns: 1fr;
+  }
+}

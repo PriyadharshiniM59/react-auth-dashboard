@@ -8,9 +8,9 @@ import { useState, useEffect, useRef } from 'react';
  */
 const CONFIG = {
     secretCode: 'FOREVER',
-    partnerName: 'My Love v2 Diagnostic',
+    partnerName: 'My Love',
     specialDate: 'February 14, 2026',
-    message: `SURPRISE #2! ❤️ This is a unique test. If you see this text, then the page has updated. Video should be unique. ❤️`,
+    message: `SURPRISE #2! ❤️ You are the most amazing person I've ever known. Every day with you is a gift, and I'm so lucky to have you in my life. Happy Valentine's Day! ❤️`,
     videoUrl: '/assets/valentine-v2-final.mp4?v=1', // Renamed asset to bypass aggressive caching
     imageUrl: '',
 };

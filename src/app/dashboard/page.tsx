@@ -31,6 +31,9 @@ export default function UserDashboard() {
                     <a href="/dashboard/ai-notes" className="sidebar-link">
                         🤖 AI Notes
                     </a>
+                    <a href="/dashboard/documents" className="sidebar-link">
+                        📄 Doc Q&A
+                    </a>
                     <a href="/dashboard" className="sidebar-link">
                         📈 Analytics
                     </a>

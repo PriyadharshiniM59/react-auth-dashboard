@@ -179,8 +179,8 @@ export default function LoveCompilerClient() {
                 {isFinished && (
                     <div style={{ textAlign: 'center' }}>
                         <div className="status-ready">[ COMPILATION SUCCESSFUL ]</div>
-                        <button className="reveal-btn" onClick={() => window.location.href = '/valentine'}>
-                            EXECUTE VALENTINE_SURPRISE.EXE ✨
+                        <button className="reveal-btn" onClick={() => window.location.href = '/valentine-2'}>
+                            EXECUTE VALENTINE_SURPRISE_V2.EXE ✨
                         </button>
                     </div>
                 )}

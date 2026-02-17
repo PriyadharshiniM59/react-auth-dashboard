@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, boolean, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, boolean, timestamp, text, integer } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
     id: serial('id').primaryKey(),
@@ -13,3 +13,15 @@ export const users = pgTable('users', {
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+
+export const documents = pgTable('documents', {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id').notNull(),
+    filename: varchar('filename', { length: 500 }).notNull(),
+    content: text('content').notNull(),
+    fileSize: integer('file_size').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export type Document = typeof documents.$inferSelect;
+export type NewDocument = typeof documents.$inferInsert;
